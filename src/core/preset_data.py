@@ -1,0 +1,191 @@
+"""Preset educational scenarios for LLM Sampling & Decoding Playground."""
+
+import json
+from pathlib import Path
+
+from src.config import settings
+from src.schemas import SamplingPreset
+
+PRESETS: list[SamplingPreset] = [
+    SamplingPreset(
+        id="factual-paris",
+        title="Factual Recall: The Capital of France",
+        category="Factual Recall",
+        prompt="The capital of France is",
+        description="Low entropy factual query where truth has overwhelming probability.",
+        explanation=(
+            "In factual questions with a single unambiguous answer, the output distribution "
+            "has extremely low entropy. 'Paris' dominates with a massive logit score. Setting "
+            "temperature low (e.g., T=0.1) or using Greedy Search yields reliable precision, "
+            "whereas high temperature (T > 1.5) causes factual hallucination (e.g., 'Lyon' or "
+            "'London')."
+        ),
+        recommended_temp=0.1,
+        recommended_top_k=5,
+        recommended_top_p=0.90,
+        recommended_rep_pen=1.0,
+        candidates={
+            "Paris": 13.8,
+            "Lyon": 6.2,
+            "Marseille": 5.8,
+            "London": 4.5,
+            "the": 3.8,
+            "located": 2.5,
+            "known": 1.9,
+            "a": 1.2,
+            "beautiful": 0.5,
+            "pizza": -3.2,
+            "banana": -4.8,
+            "1994": -5.5,
+        },
+    ),
+    SamplingPreset(
+        id="creative-forest",
+        title="Creative Storytelling: The Enchanted Forest",
+        category="Creative Storytelling",
+        prompt="Deep in the enchanted forest, the ancient wizard discovered a",
+        description="High entropy open-ended creative continuation with diverse valid options.",
+        explanation=(
+            "In creative writing, there is no single 'correct' next word. The probability mass "
+            "is spread smoothly across magical artifacts, creatures, and mysterious portals. "
+            "Greedy decoding picks predictable cliches ('glowing orb'), while Nucleus Sampling "
+            "(top_p = 0.90, T = 0.85) allows creative variety while filtering out incoherent tails."
+        ),
+        recommended_temp=0.85,
+        recommended_top_k=15,
+        recommended_top_p=0.92,
+        recommended_rep_pen=1.1,
+        candidates={
+            "glowing": 8.4,
+            "mysterious": 8.1,
+            "hidden": 7.9,
+            "crystal": 7.6,
+            "secret": 7.3,
+            "portal": 7.0,
+            "book": 6.8,
+            "sword": 6.5,
+            "magical": 6.3,
+            "strange": 6.1,
+            "forgotten": 5.9,
+            "golden": 5.7,
+            "dragon": 5.5,
+            "door": 5.2,
+            "cave": 4.9,
+            "refrigerator": -1.5,
+            "tax": -3.8,
+            "spreadsheet": -4.6,
+        },
+    ),
+    SamplingPreset(
+        id="repetition-loop",
+        title="Degenerative Repetition Loop: Chasing Dogs",
+        category="Repetitive Loop",
+        prompt="The dog chased the cat and then the cat chased the dog and then",
+        description="Demonstrating greedy search loops and how repetition penalty breaks them.",
+        explanation=(
+            "Transformers without repetition penalties often get trapped in infinite "
+            "degenerative self-reinforcing loops. Because 'the dog chased the cat and then' "
+            "appeared in the context, the model assigns maximum probability to 'the dog'. "
+            "Raising Repetition Penalty (e.g. 1.25 to 1.50) artificially discounts repeated "
+            "tokens, forcing the model to break the cycle and introduce fresh progression."
+        ),
+        recommended_temp=0.7,
+        recommended_top_k=10,
+        recommended_top_p=0.90,
+        recommended_rep_pen=1.35,
+        candidates={
+            "the": 11.2,
+            "a": 5.4,
+            "both": 4.8,
+            "they": 4.5,
+            "suddenly": 4.1,
+            "it": 3.8,
+            "finally": 3.5,
+            "everything": 2.8,
+            "stopped": 2.2,
+            "ran": 1.7,
+        },
+    ),
+    SamplingPreset(
+        id="code-binary-search",
+        title="Code Completion: Binary Search Implementation",
+        category="Code Completion",
+        prompt=(
+            "def binary_search(arr, target):\n"
+            "    low = 0\n"
+            "    high = len(arr) - 1\n"
+            "    while low <= high:\n"
+            "        mid ="
+        ),
+        description="Strict deterministic code syntax where exact formula tokens are required.",
+        explanation=(
+            "Programming code generation demands near-deterministic precision. For calculating "
+            "the middle index, '(low + high) // 2' is universally expected. Any sampling "
+            "randomness (high temperature) introduces fatal syntax bugs or incorrect array logic. "
+            "Code models typically run at T <= 0.2 with top_p <= 0.95."
+        ),
+        recommended_temp=0.2,
+        recommended_top_k=5,
+        recommended_top_p=0.85,
+        recommended_rep_pen=1.0,
+        candidates={
+            " (low + high) // 2": 12.8,
+            " low + (high - low) // 2": 11.4,
+            " (low + high) / 2": 6.8,
+            " int((low + high) / 2)": 5.9,
+            " low": 3.2,
+            " random.randint(low, high)": -1.2,
+            " 'error'": -4.0,
+        },
+    ),
+    SamplingPreset(
+        id="bimodal-baseball",
+        title="Contextual Bimodal Split: The Batter's Swing",
+        category="Bimodal Polysemy",
+        prompt="The baseball player stepped up to the plate and swung his",
+        description="Bi-modal distribution with high probability focused on domain equipment.",
+        explanation=(
+            "When the sentence context provides strong domain constraints ('baseball player', "
+            "'plate'), the model eliminates general nouns and concentrates probability on "
+            "'bat' (the tool) with secondary candidates describing the swing style ('arms', "
+            "'body'). Nucleus sampling (top_p = 0.90) cleanly clips off irrelevant words."
+        ),
+        recommended_temp=0.7,
+        recommended_top_k=8,
+        recommended_top_p=0.90,
+        recommended_rep_pen=1.0,
+        candidates={
+            "bat": 12.5,
+            "wooden": 6.8,
+            "arms": 5.4,
+            "body": 4.2,
+            "helmet": 3.1,
+            "glove": 2.5,
+            "sword": -1.5,
+            "wand": -3.2,
+            "guitar": -4.0,
+        },
+    ),
+]
+
+
+def get_all_presets() -> list[SamplingPreset]:
+    """Retrieve all sampling presets."""
+    return PRESETS
+
+
+def get_preset_by_id(preset_id: str) -> SamplingPreset | None:
+    """Retrieve a single preset by ID."""
+    for p in PRESETS:
+        if p.id == preset_id:
+            return p
+    return None
+
+
+def export_presets_json(output_path: Path | None = None) -> Path:
+    """Export presets to JSON for frontend web application."""
+    target_path = output_path or settings.presets_file
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(target_path, "w", encoding="utf-8") as f:
+        json.dump([p.model_dump() for p in PRESETS], f, indent=2)
+    return target_path

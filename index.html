@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Sampling &amp; Decoding Playground | Interactive Generation Lab</title>
+  <meta name="description" content="Interactive demo exploring LLM next-token sampling and decoding strategies: Temperature, Top-K, Top-P (Nucleus Sampling), Min-P, Repetition Penalty, Greedy, and Beam Search.">
+  <meta name="keywords" content="LLM, Next-Token Prediction, Temperature, Top-k, Top-p, Nucleus Sampling, Min-p, Repetition Penalty, Beam Search, Softmax, Logits, Transformers">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
+</head>
+<body>
+
+  <!-- Sticky Header & Navigation -->
+  <header class="app-header">
+    <div class="container nav-wrapper">
+      <a href="#hero" class="brand-badge">
+        <div class="brand-icon">🎲</div>
+        <div class="brand-titles">
+          <span class="brand-title">Sampling &amp; Decoding</span>
+          <span class="brand-subtitle">Interactive LLM Generation Lab</span>
+        </div>
+      </a>
+      <nav class="main-nav" aria-label="Main Navigation">
+        <a href="#studio" class="nav-link">Studio &amp; Sliders</a>
+        <a href="#distribution-view" class="nav-link">Logits Bar Chart</a>
+        <a href="#roulette-view" class="nav-link">Sampling Tape</a>
+        <a href="#strategies-view" class="nav-link">Decoding Strategies</a>
+        <a href="#interactive-gen" class="nav-link">Step Generator</a>
+        <a href="https://martianunlimited.github.io/llm_tokenizer/" class="nav-link" target="_blank" rel="noopener">🔤 Tokenizer</a>
+        <a href="https://martianunlimited.github.io/llm_embedding/" class="nav-link" target="_blank" rel="noopener">🧭 Embeddings</a>
+        <a href="https://martianunlimited.github.io/llm_attention/" class="nav-link" target="_blank" rel="noopener">🎯 Attention</a>
+        <a href="https://github.com/martianunlimited/llm_sampling" class="nav-link nav-cta" target="_blank" rel="noopener">★ GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero Section -->
+    <section id="hero" class="hero-section">
+      <div class="container">
+        <div class="hero-pill">
+          <span>🎯 From Raw Logits to Coherent Sentences</span>
+          <span>•</span>
+          <span>Holtzman et al. (2019)</span>
+          <span>•</span>
+          <span>Nucleus &amp; Beam Search</span>
+        </div>
+        <h1 class="hero-title">
+          How LLMs Choose the Next Word: <br>
+          <span class="gradient-text">Sampling &amp; Decoding Playground</span>
+        </h1>
+        <p class="hero-desc">
+          When a language model processes text, its final layer outputs raw numerical scores (<em>logits</em>) across its vocabulary. 
+          Explore how <strong>Softmax</strong> converts scores into probabilities, how <strong>Temperature</strong> balances creativity vs. determinism, 
+          why <strong>Top-$p$ Nucleus Sampling</strong> solves the <em>"Curious Case of Neural Text Degeneration"</em>, 
+          and how <strong>Repetition Penalties</strong> break infinite loops.
+        </p>
+
+        <!-- Quick Feature Badges -->
+        <div class="hero-highlights">
+          <div class="highlight-badge">
+            <span>🌡️</span>
+            <span><strong>Temperature:</strong> $T \to 0$ (Rigid Greedy) to $T > 1.5$ (Chaotic Hallucination)</span>
+          </div>
+          <div class="highlight-badge">
+            <span>✂️</span>
+            <span><strong>Top-$k$ &amp; Top-$p$:</strong> Truncating the long tail of low-probability words</span>
+          </div>
+          <div class="highlight-badge">
+            <span>🔁</span>
+            <span><strong>Repetition Penalty:</strong> Suppressing degenerative loop cycles</span>
+          </div>
+          <div class="highlight-badge">
+            <span>🌳</span>
+            <span><strong>Beam Search:</strong> Multi-hypothesis global likelihood path exploration</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Studio & Interactive Controls Section -->
+    <section id="studio" class="studio-section">
+      <div class="container">
+        <div class="panel-card main-control-panel">
+          <div class="panel-header-row">
+            <div>
+              <h2 class="panel-title">1. Scenario &amp; Hyperparameter Studio</h2>
+              <p class="panel-subtitle">Select an educational scenario or customize the prompt to observe distribution shifts:</p>
+            </div>
+            <div class="entropy-badge">
+              <span>Entropy:</span>
+              <strong id="entropy-val">0.420 bits</strong>
+            </div>
+          </div>
+
+          <!-- Preset Scenarios Ribbon -->
+          <div class="presets-ribbon" id="presets-container" aria-label="Educational Presets">
+            <button class="preset-btn active" data-id="factual-paris">
+              <span class="preset-icon">🏛️</span>
+              <span class="preset-text">Factual Paris</span>
+            </button>
+            <button class="preset-btn" data-id="creative-forest">
+              <span class="preset-icon">🧙</span>
+              <span class="preset-text">Enchanted Forest</span>
+            </button>
+            <button class="preset-btn" data-id="repetition-loop">
+              <span class="preset-icon">🔁</span>
+              <span class="preset-text">Chasing Dogs Loop</span>
+            </button>
+            <button class="preset-btn" data-id="code-binary-search">
+              <span class="preset-icon">💻</span>
+              <span class="preset-text">Code Binary Search</span>
+            </button>
+            <button class="preset-btn" data-id="bimodal-baseball">
+              <span class="preset-icon">⚾</span>
+              <span class="preset-text">Batter's Swing</span>
+            </button>
+          </div>
+
+          <!-- Prompt Display & Context Bar -->
+          <div class="prompt-box">
+            <span class="prompt-prefix-label">Current Prompt Prefix:</span>
+            <div class="prompt-text-display" id="prompt-display">The capital of France is</div>
+          </div>
+
+          <!-- Hyperparameter HUD Grid -->
+          <div class="hud-controls-grid">
+            <!-- 1. Temperature -->
+            <div class="hud-block">
+              <div class="slider-header">
+                <label class="hud-label" for="slider-temp">Temperature ($T$):</label>
+                <span class="slider-val-badge" id="val-temp">0.80</span>
+              </div>
+              <input 
+                type="range" 
+                id="slider-temp" 
+                min="0.05" 
+                max="2.50" 
+                step="0.05" 
+                value="0.80" 
+                class="range-slider">
+              <div class="slider-ticks">
+                <span>0.1 (Greedy / Cold)</span>
+                <span>1.0 (Calibrated)</span>
+                <span>2.5 (Chaotic / Hot)</span>
+              </div>
+            </div>
+
+            <!-- 2. Top-K Cutoff -->
+            <div class="hud-block">
+              <div class="slider-header">
+                <label class="hud-label" for="slider-top-k">Top-$k$ Cutoff:</label>
+                <span class="slider-val-badge" id="val-top-k">10</span>
+              </div>
+              <input 
+                type="range" 
+                id="slider-top-k" 
+                min="1" 
+                max="20" 
+                step="1" 
+                value="10" 
+                class="range-slider">
+              <div class="slider-ticks">
+                <span>1 (Argmax only)</span>
+                <span>10 (Default)</span>
+                <span>20 (All)</span>
+              </div>
+            </div>
+
+            <!-- 3. Top-P Nucleus Threshold -->
+            <div class="hud-block">
+              <div class="slider-header">
+                <label class="hud-label" for="slider-top-p">Top-$p$ Nucleus:</label>
+                <span class="slider-val-badge" id="val-top-p">0.90</span>
+              </div>
+              <input 
+                type="range" 
+                id="slider-top-p" 
+                min="0.10" 
+                max="1.00" 
+                step="0.05" 
+                value="0.90" 
+                class="range-slider">
+              <div class="slider-ticks">
+                <span>0.50 (Tight)</span>
+                <span>0.90 (Standard)</span>
+                <span>1.00 (Off)</span>
+              </div>
+            </div>
+
+            <!-- 4. Repetition Penalty -->
+            <div class="hud-block">
+              <div class="slider-header">
+                <label class="hud-label" for="slider-rep-pen">Repetition Penalty:</label>
+                <span class="slider-val-badge" id="val-rep-pen">1.00</span>
+              </div>
+              <input 
+                type="range" 
+                id="slider-rep-pen" 
+                min="1.00" 
+                max="2.50" 
+                step="0.05" 
+                value="1.00" 
+                class="range-slider">
+              <div class="slider-ticks">
+                <span>1.0 (No penalty)</span>
+                <span>1.3 (Loop breaker)</span>
+                <span>2.5 (High)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visualizer 1: Candidate Tokens Bar Chart & Filters -->
+    <section id="distribution-view" class="section-block">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Visualizer 1</div>
+          <h2 class="section-title">The Candidate Distribution &amp; Filter Barriers</h2>
+          <p class="section-desc">
+            Raw logits pass through Temperature scaling, Top-$k$, and Top-$p$ Nucleus filters. 
+            Active surviving candidates are shown in glowing cyan/green; filtered candidates are marked with reasons.
+          </p>
+        </div>
+
+        <div class="chart-layout-grid">
+          <!-- The Bar Chart Container -->
+          <div class="chart-card">
+            <div class="chart-header-bar">
+              <span class="chart-title-text" id="chart-title">Top Candidate Tokens for Next Word</span>
+              <div class="chart-legend">
+                <span class="legend-item"><span class="legend-color-box active-box"></span> Active Pool</span>
+                <span class="legend-item"><span class="legend-color-box filtered-box"></span> Filtered Out</span>
+                <span class="legend-item"><span class="legend-color-box argmax-box"></span> Argmax (#1)</span>
+              </div>
+            </div>
+
+            <!-- Probability Bars Container -->
+            <div class="candidate-bars-list" id="candidate-bars-container">
+              <!-- Dynamically injected via JavaScript -->
+            </div>
+          </div>
+
+          <!-- Mathematical Inspector Card -->
+          <div class="math-inspector-card" id="sampling-inspector">
+            <h3 class="inspector-title">Sampling Mathematics Breakdown</h3>
+            <p class="inspector-hint">Hover over any candidate bar to inspect its exact mathematical derivation:</p>
+
+            <div class="math-breakdown-box">
+              <div class="math-token-header">
+                <span class="math-col-label">Candidate Token:</span>
+                <span class="math-tok-name" id="insp-tok-name">'Paris'</span>
+                <span class="math-tok-status" id="insp-tok-status">ACTIVE</span>
+              </div>
+
+              <div class="math-step-row">
+                <span class="math-step-label">1. Raw Model Logit ($z_i$):</span>
+                <span class="math-step-val" id="insp-raw-logit">13.80</span>
+              </div>
+              <div class="math-step-row">
+                <span class="math-step-label">2. Penalized Logit ($z_i'$):</span>
+                <span class="math-step-val" id="insp-pen-logit">13.80</span>
+              </div>
+              <div class="math-step-row">
+                <span class="math-step-label">3. Temperature Scaled ($z_i' / T$):</span>
+                <span class="math-step-val" id="insp-temp-scaled">17.25</span>
+              </div>
+              <div class="math-step-row">
+                <span class="math-step-label">4. Raw Softmax Probability ($P_{\text{raw}}$):</span>
+                <span class="math-step-val" id="insp-raw-prob">98.42%</span>
+              </div>
+              <div class="math-step-row highlight-row">
+                <span class="math-step-label">5. Renormalized Probability ($P_{\text{final}}$):</span>
+                <span class="math-step-val primary-val" id="insp-final-prob">100.00%</span>
+              </div>
+              <div class="math-step-row">
+                <span class="math-step-label">6. Cumulative Mass Position:</span>
+                <span class="math-step-val" id="insp-cum-prob">100.0%</span>
+              </div>
+
+              <div class="math-note" id="insp-math-note">
+                Dominant candidate! High probability mass concentrated on this token.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visualizer 2: Continuous Probability Tape & Random Roll -->
+    <section id="roulette-view" class="section-block bg-elevated">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Visualizer 2</div>
+          <h2 class="section-title">The Probability Tape &amp; Simulated Dice Roll</h2>
+          <p class="section-desc">
+            How a computer turns continuous random noise into discrete language: 
+            A uniform random number $r \in [0.0, 1.0)$ is drawn, and whichever token's cumulative slice it lands on is selected!
+          </p>
+        </div>
+
+        <div class="roulette-card">
+          <div class="roulette-controls">
+            <button id="roll-dice-btn" class="btn btn-primary btn-large">
+              <span>🎲 Roll Dice &amp; Sample Token</span>
+            </button>
+            <div class="roll-result-badge">
+              <span>Random Roll ($r$):</span>
+              <strong id="roll-coord-display">0.3421</strong>
+              <span>➔ Selected:</span>
+              <strong class="selected-tok-pill" id="roll-winner-display">'Paris'</strong>
+            </div>
+          </div>
+
+          <!-- Linear Probability Tape Visualizer -->
+          <div class="tape-container">
+            <div class="tape-ruler">
+              <span>0% (0.0)</span>
+              <span>25% (0.25)</span>
+              <span>50% (0.50)</span>
+              <span>75% (0.75)</span>
+              <span>100% (1.0)</span>
+            </div>
+            
+            <div class="probability-tape" id="probability-tape">
+              <!-- Slices injected via JavaScript -->
+            </div>
+
+            <!-- Rolling Pointer Arrow -->
+            <div class="tape-pointer" id="tape-pointer" style="left: 34.2%;">
+              <div class="pointer-arrow">▼</div>
+              <div class="pointer-tag" id="pointer-tag">r = 0.342</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visualizer 3: Decoding Strategies Comparison -->
+    <section id="strategies-view" class="section-block">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Visualizer 3</div>
+          <h2 class="section-title">Decoding Strategies: Greedy vs. Beam vs. Nucleus</h2>
+          <p class="section-desc">
+            How different decoding algorithms navigate the branching combinatorial search tree of human language:
+          </p>
+        </div>
+
+        <div class="strategies-grid">
+          <!-- Strategy 1: Greedy Search -->
+          <div class="strategy-card">
+            <div class="strategy-header">
+              <span class="strategy-badge">Deterministic</span>
+              <h3 class="strategy-title">Greedy Search ($T \to 0$)</h3>
+            </div>
+            <p class="strategy-desc">
+              Always greedily selects the single highest-probability token ($\text{argmax}$).
+            </p>
+            <div class="strategy-props">
+              <div class="prop-row"><span>Speed:</span> <strong class="text-green">Ultra Fast ($O(1)$)</strong></div>
+              <div class="prop-row"><span>Creativity:</span> <strong class="text-red">Zero (Rigid)</strong></div>
+              <div class="prop-row"><span>Risk:</span> <strong class="text-yellow">Repetitive loops, local traps</strong></div>
+            </div>
+            <div class="strategy-result-box" id="greedy-result-box">
+              <span class="strat-label">Predicted Token:</span>
+              <strong class="strat-token" id="strat-greedy-tok">'Paris'</strong>
+            </div>
+          </div>
+
+          <!-- Strategy 2: Beam Search -->
+          <div class="strategy-card highlight-card">
+            <div class="strategy-header">
+              <span class="strategy-badge badge-cyan">Combinatorial</span>
+              <h3 class="strategy-title">Beam Search (Width = 3)</h3>
+            </div>
+            <p class="strategy-desc">
+              Maintains the top-$B$ most likely candidate sequences across multi-step paths: $\prod P(w_t \mid w_{<t})$.
+            </p>
+            <div class="strategy-props">
+              <div class="prop-row"><span>Speed:</span> <strong class="text-yellow">Moderate ($O(B \times V)$)</strong></div>
+              <div class="prop-row"><span>Quality:</span> <strong class="text-cyan">High Global Coherence</strong></div>
+              <div class="prop-row"><span>Use Case:</span> <strong class="text-green">Translation, Summarization</strong></div>
+            </div>
+            <div class="strategy-result-box" id="beam-result-box">
+              <span class="strat-label">Top Beam Sequence:</span>
+              <strong class="strat-token" id="strat-beam-tok">'Paris , which is'</strong>
+            </div>
+          </div>
+
+          <!-- Strategy 3: Nucleus (Top-p) Sampling -->
+          <div class="strategy-card">
+            <div class="strategy-header">
+              <span class="strategy-badge badge-pink">Stochastic</span>
+              <h3 class="strategy-title">Nucleus Sampling (Top-$p$)</h3>
+            </div>
+            <p class="strategy-desc">
+              Dynamically truncates the unreliable tail, then draws randomly from the coherent mass.
+            </p>
+            <div class="strategy-props">
+              <div class="prop-row"><span>Speed:</span> <strong class="text-green">Fast</strong></div>
+              <div class="prop-row"><span>Creativity:</span> <strong class="text-pink">High &amp; Natural</strong></div>
+              <div class="prop-row"><span>Use Case:</span> <strong class="text-green">Chatbots, Storytelling, Creative</strong></div>
+            </div>
+            <div class="strategy-result-box" id="nucleus-result-box">
+              <span class="strat-label">Sampled Candidate:</span>
+              <strong class="strat-token" id="strat-nucleus-tok">'Paris'</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visualizer 4: Multi-Token Step Generator -->
+    <section id="interactive-gen" class="section-block bg-elevated">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-tag">Visualizer 4</div>
+          <h2 class="section-title">Multi-Token Step-by-Step Generator</h2>
+          <p class="section-desc">
+            Watch an autoregressive model build a complete sentence word by word. 
+            Click <strong>Step Next Word</strong> to see the candidates recalculate in real time!
+          </p>
+        </div>
+
+        <div class="panel-card generator-panel">
+          <div class="generator-workspace">
+            <div class="stream-text-container" id="stream-text-box">
+              <span class="stream-prefix" id="stream-prompt-part">The capital of France is</span>
+              <span class="stream-generated" id="stream-generated-part"></span>
+              <span class="typing-cursor"></span>
+            </div>
+
+            <div class="generator-actions">
+              <button id="step-next-btn" class="btn btn-primary">
+                <span>⚡ Step Next Word</span>
+              </button>
+              <button id="auto-stream-btn" class="btn btn-secondary">
+                <span>▶ Auto Generate (5 Steps)</span>
+              </button>
+              <button id="reset-stream-btn" class="btn btn-secondary">
+                <span>↺ Reset Sentence</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Educational Deep Dive & References -->
+    <section id="insights" class="section-block">
+      <div class="container">
+        <div class="panel-card deep-dive-panel">
+          <div class="deep-dive-badge">📚 Algorithmic &amp; Cognitive Insight</div>
+          <h2 class="deep-dive-title" id="scenario-title">Factual Recall: The Capital of France</h2>
+          
+          <div class="deep-dive-content" id="scenario-explanation">
+            In factual questions with a single unambiguous answer, the output distribution has extremely low entropy. 
+            'Paris' dominates with a massive logit score. Setting temperature low (e.g., T=0.1) yields reliable precision, 
+            whereas high temperature causes hallucinations.
+          </div>
+
+          <div class="classic-papers-grid">
+            <div class="paper-citation">
+              <strong>"The Curious Case of Neural Text Degeneration" (2019)</strong>
+              <p>Ari Holtzman, Jan Buys, Li Du, Maxwell Forbes, Yejin Choi (Inventors of Nucleus Top-p Sampling).</p>
+            </div>
+            <div class="paper-citation">
+              <strong>"CTRL: A Conditional Transformer Language Model" (2019)</strong>
+              <p>Nitish Shirish Keskar, Bryan McCann, Caiming Xiong, Richard Socher (Repetition Penalty formulation).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="container footer-content">
+      <p>
+        Interactive LLM Sampling &amp; Decoding Playground. Zero backend required &mdash; runs 100% client-side for GitHub Pages.
+      </p>
+      <div class="footer-links">
+        <a href="https://github.com/martianunlimited/llm_sampling" target="_blank" rel="noopener">GitHub Repository</a>
+        <span>•</span>
+        <a href="https://martianunlimited.github.io/llm_tokenizer/" target="_blank" rel="noopener">🔤 Tokenizer Demo</a>
+        <span>•</span>
+        <a href="https://martianunlimited.github.io/llm_embedding/" target="_blank" rel="noopener">🧭 Embeddings Demo</a>
+        <span>•</span>
+        <a href="https://martianunlimited.github.io/llm_attention/" target="_blank" rel="noopener">🎯 Attention Demo</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
