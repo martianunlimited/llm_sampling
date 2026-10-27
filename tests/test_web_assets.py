@@ -44,3 +44,5 @@ def test_html_contains_critical_components() -> None:
     assert "slider-rep-pen" in html
     assert "roll-dice-btn" in html
     assert "step-next-btn" in html
+    assert "prompt-input" in html
+    assert "top-sample-btn" in html

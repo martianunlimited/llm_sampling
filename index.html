@@ -120,10 +120,46 @@
             </button>
           </div>
 
-          <!-- Prompt Display & Context Bar -->
+          <!-- Prompt Display & Interactive Context Bar -->
           <div class="prompt-box">
-            <span class="prompt-prefix-label">Current Prompt Prefix:</span>
-            <div class="prompt-text-display" id="prompt-display">The capital of France is</div>
+            <div class="prompt-header-row">
+              <div class="prompt-title-group">
+                <label class="prompt-prefix-label" for="prompt-input">Input Context / Active Prompt:</label>
+                <span class="prompt-badge">Editable</span>
+              </div>
+              <div class="prompt-quick-actions">
+                <span class="prompt-kbd-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to sample</span>
+                <button id="reset-prompt-btn" class="btn btn-ghost" title="Reset to preset prompt">
+                  <span>↺ Reset</span>
+                </button>
+              </div>
+            </div>
+
+            <textarea 
+              id="prompt-input" 
+              class="prompt-textarea" 
+              rows="2" 
+              placeholder="Type your prompt here or select a scenario above..."
+              spellcheck="false">The capital of France is</textarea>
+            <!-- Hidden alias element for backward compatibility -->
+            <div id="prompt-display" style="display: none;"></div>
+
+            <div class="prompt-actions-bar">
+              <div class="prompt-actions-left">
+                <button id="top-sample-btn" class="btn btn-primary">
+                  <span>⚡ Sample Next Token</span>
+                </button>
+                <button id="top-auto-btn" class="btn btn-secondary">
+                  <span>▶ Auto Generate (5 Steps)</span>
+                </button>
+                <button id="top-roll-btn" class="btn btn-secondary" title="Roll dice on current distribution">
+                  <span>🎲 Roll Dice</span>
+                </button>
+              </div>
+              <div class="prompt-status-right">
+                <span class="token-count-pill" id="prompt-token-count">5 tokens</span>
+              </div>
+            </div>
           </div>
 
           <!-- Hyperparameter HUD Grid -->

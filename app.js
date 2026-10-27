@@ -253,38 +253,97 @@ const state = {
   activeCandidateHover: null
 };
 
-// Contextual Continuation Resolver
+// Contextual Continuation Resolver supporting presets and custom user prompts
 function getContinuationLogits(presetId, generatedTokens, defaultCandidates) {
-  if (!generatedTokens || generatedTokens.length === 0) {
+  const presetObj = state.presets.find(p => p.id === presetId);
+  const promptInput = document.getElementById("prompt-input");
+  const currentVal = promptInput ? promptInput.value.trim() : state.currentPrompt.trim();
+
+  // If at initial preset prompt and no tokens generated yet, return the calibrated initial candidates
+  if ((!generatedTokens || generatedTokens.length === 0) && presetObj && currentVal === presetObj.prompt.trim()) {
+    return presetObj.candidates || defaultCandidates;
+  }
+
+  const fullText = promptInput
+    ? promptInput.value.trim()
+    : (state.currentPrompt + " " + (generatedTokens || []).join(" ")).trim();
+  const allTokens = fullText.split(/\s+/).filter(Boolean);
+
+  if (allTokens.length === 0) {
     return defaultCandidates;
   }
 
   // Look in active preset's continuation library
-  const presetObj = state.presets.find(p => p.id === presetId);
   const scenario = (presetObj && presetObj.continuations && Object.keys(presetObj.continuations).length > 0)
     ? presetObj.continuations
     : (SCENARIO_CONTINUATIONS[presetId] || {});
 
-  const lastToken = generatedTokens[generatedTokens.length - 1];
-  const cleanLast = lastToken.trim();
+  // If we have generatedTokens, check last generated token first within the scenario
+  if (generatedTokens && generatedTokens.length > 0) {
+    const lastGen = generatedTokens[generatedTokens.length - 1];
+    const cleanLastGen = lastGen.trim().replace(/^[^a-zA-Z0-9_\n]+|[^a-zA-Z0-9_\n]+$/g, "");
+    if (scenario[lastGen]) return scenario[lastGen];
+    if (cleanLastGen && scenario[cleanLastGen]) return scenario[cleanLastGen];
 
-  // 1. Direct match on last token
+    if (generatedTokens.length >= 2) {
+      const prevGen = generatedTokens[generatedTokens.length - 2].trim().replace(/^[^a-zA-Z0-9_\n]+|[^a-zA-Z0-9_\n]+$/g, "");
+      const twoTokGen = `${prevGen} ${cleanLastGen}`;
+      if (scenario[twoTokGen]) return scenario[twoTokGen];
+    }
+  }
+
+  const lastToken = allTokens[allTokens.length - 1];
+  const cleanLast = lastToken.trim().replace(/^[^a-zA-Z0-9_\n]+|[^a-zA-Z0-9_\n]+$/g, "");
+
+  // 1. Direct match on last token in active scenario
   if (scenario[lastToken]) return scenario[lastToken];
-  if (scenario[cleanLast]) return scenario[cleanLast];
+  if (cleanLast && scenario[cleanLast]) return scenario[cleanLast];
 
-  // 2. Multi-token context match (e.g., "chased the", "bat at", "arr[mid] ==")
-  if (generatedTokens.length >= 2) {
-    const twoTok = `${generatedTokens[generatedTokens.length - 2].trim()} ${cleanLast}`;
+  // 2. Multi-token context match in active scenario (e.g., "chased the", "bat at", "arr[mid] ==")
+  if (allTokens.length >= 2) {
+    const prev = allTokens[allTokens.length - 2].trim().replace(/^[^a-zA-Z0-9_\n]+|[^a-zA-Z0-9_\n]+$/g, "");
+    const twoTok = `${prev} ${cleanLast}`;
     if (scenario[twoTok]) return scenario[twoTok];
   }
 
-  // 3. Fallback generic continuations
+  // 3. Check across all scenario libraries
+  for (const scen of Object.values(SCENARIO_CONTINUATIONS)) {
+    if (scen[lastToken]) return scen[lastToken];
+    if (cleanLast && scen[cleanLast]) return scen[cleanLast];
+  }
+
+  // 4. Heuristic part-of-speech & semantics continuation generator for custom prompts
+  const lower = cleanLast.toLowerCase();
+  if (["is", "was", "are", "were", "has", "had", "been", "become"].includes(lower)) {
+    return { "a": 9.2, "the": 8.8, "known": 8.5, "not": 7.8, "one": 7.2, "located": 6.8, "famous": 6.5, "very": 6.0 };
+  }
+  if (["the", "a", "an", "this", "that", "these", "those", "my", "his", "her", "their", "our"].includes(lower)) {
+    return { "first": 8.8, "most": 8.5, "new": 8.2, "world": 7.8, "city": 7.5, "system": 7.1, "model": 6.8, "great": 6.5 };
+  }
+  if (["in", "on", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after"].includes(lower)) {
+    return { "the": 10.5, "a": 9.2, "its": 8.5, "this": 7.8, "all": 7.2, "their": 6.8, "every": 6.2 };
+  }
+  if (["and", "or", "but", "while", "because", "although", "since", "if", "when", "where"].includes(lower)) {
+    return { "the": 9.5, "then": 8.8, "it": 8.2, "they": 7.8, "he": 7.2, "we": 6.8, "suddenly": 6.2 };
+  }
+  if (lastToken.endsWith(".") || lastToken.endsWith("!") || lastToken.endsWith("?")) {
+    return { "The": 9.8, "It": 8.8, "This": 8.5, "However,": 7.5, "Then": 7.2, "In": 6.8 };
+  }
+  if (lastToken.endsWith(",")) {
+    return { "which": 9.5, "and": 8.8, "where": 8.2, "the": 7.8, "but": 7.2, "as": 6.8 };
+  }
+  if (lastToken.endsWith(":")) {
+    return { "\n        return": 12.5, "\n        if": 11.2, "\n        pass": 8.5, "\n        print": 7.2 };
+  }
+
+  // 5. Intelligent default continuation
   return {
-    "and": 7.5,
-    "the": 7.2,
-    "with": 6.5,
-    "in": 6.0,
-    "which": 5.5,
+    "and": 7.8,
+    "the": 7.5,
+    "with": 6.8,
+    "in": 6.2,
+    "which": 5.8,
+    "that": 5.4,
     "suddenly": 5.0,
     ".": 4.5
   };
@@ -641,6 +700,31 @@ function renderPresetInsights(preset) {
   document.getElementById("scenario-explanation").textContent = preset.explanation;
 }
 
+function updateTokenCountDisplay() {
+  const countEl = document.getElementById("prompt-token-count");
+  if (!countEl) return;
+  const promptInput = document.getElementById("prompt-input");
+  const text = promptInput ? promptInput.value : state.currentPrompt;
+  const tokens = tokenizeContext(text, []);
+  countEl.textContent = `${tokens.length} token${tokens.length === 1 ? "" : "s"}`;
+}
+
+function updatePromptUI(text) {
+  const promptInput = document.getElementById("prompt-input");
+  if (promptInput) {
+    promptInput.value = text;
+  }
+  const promptDisplay = document.getElementById("prompt-display");
+  if (promptDisplay) {
+    promptDisplay.textContent = text;
+  }
+  const streamPrompt = document.getElementById("stream-prompt-part");
+  if (streamPrompt) {
+    streamPrompt.textContent = text;
+  }
+  updateTokenCountDisplay();
+}
+
 function updateGeneratedTextDisplay() {
   const streamEl = document.getElementById("stream-generated-part");
   if (!streamEl) return;
@@ -650,7 +734,7 @@ function updateGeneratedTextDisplay() {
     const tok = state.generatedTokens[i];
     if (tok.startsWith("\n") || tok.startsWith(" ")) {
       formatted += tok;
-    } else if (tok === "," || tok === "." || tok === "!" || tok === "?") {
+    } else if (tok === "," || tok === "." || tok === "!" || tok === "?" || tok === ":") {
       formatted += tok;
     } else {
       formatted += (i === 0 ? " " : " ") + tok;
@@ -684,8 +768,7 @@ function selectPreset(presetId) {
   document.getElementById("slider-rep-pen").value = state.repetition_penalty;
   document.getElementById("val-rep-pen").textContent = state.repetition_penalty.toFixed(2);
 
-  document.getElementById("prompt-display").textContent = preset.prompt;
-  document.getElementById("stream-prompt-part").textContent = preset.prompt;
+  updatePromptUI(preset.prompt);
   updateGeneratedTextDisplay();
 
   document.querySelectorAll(".preset-btn").forEach(btn => {
@@ -702,9 +785,12 @@ function recomputeAndRender(lastRoll = null, lastToken = null) {
   // Dynamically resolve continuation logits conditioned on generated sequence history
   const activeLogits = getContinuationLogits(state.activePresetId, state.generatedTokens, preset.candidates);
 
-  const fullTokens = tokenizeContext(state.currentPrompt, state.generatedTokens);
+  const promptInput = document.getElementById("prompt-input");
+  const activeText = promptInput ? promptInput.value : (state.currentPrompt + " " + state.generatedTokens.join(" "));
+  const fullTokens = tokenizeContext(activeText, []);
+
   state.distributionResult = processDistribution(
-    state.currentPrompt + " " + state.generatedTokens.join(" "),
+    activeText,
     activeLogits,
     {
       temperature: state.temperature,
@@ -726,6 +812,7 @@ function recomputeAndRender(lastRoll = null, lastToken = null) {
   // Render probability tape and strategies for the new step
   renderProbabilityTape(lastRoll, lastToken);
   updateStrategiesDisplay();
+  updateTokenCountDisplay();
 }
 
 function executeDiceRoll() {
@@ -739,29 +826,56 @@ function stepNextWord() {
 
   // 2. Append newly sampled token to context history
   state.generatedTokens.push(res.token);
+
+  // 3. Append to top prompt textarea with smart spacing
+  const promptInput = document.getElementById("prompt-input");
+  if (promptInput) {
+    let val = promptInput.value;
+    const tok = res.token;
+    if (tok.startsWith("\n") || tok.startsWith(" ")) {
+      val += tok;
+    } else if (tok === "," || tok === "." || tok === "!" || tok === "?" || tok === ":") {
+      val += tok;
+    } else {
+      val += (val.length === 0 || val.endsWith(" ") || val.endsWith("\n") ? "" : " ") + tok;
+    }
+    promptInput.value = val;
+    promptInput.scrollTop = promptInput.scrollHeight;
+  }
+
+  // 4. Update bottom stream display
   updateGeneratedTextDisplay();
 
-  // 3. Dynamically recalculate candidate probabilities for the next token!
+  // 5. Dynamically recalculate candidate probabilities for the next token!
   recomputeAndRender(res.roll, res.token);
 }
 
 let autoStreamInterval = null;
 function toggleAutoStream() {
-  const btn = document.getElementById("auto-stream-btn");
+  const topBtn = document.getElementById("top-auto-btn");
+  const bottomBtn = document.getElementById("auto-stream-btn");
+
   if (autoStreamInterval) {
     clearInterval(autoStreamInterval);
     autoStreamInterval = null;
-    btn.innerHTML = "<span>▶ Auto Generate (5 Steps)</span>";
+    const label = "<span>▶ Auto Generate (5 Steps)</span>";
+    if (topBtn) topBtn.innerHTML = label;
+    if (bottomBtn) bottomBtn.innerHTML = label;
     return;
   }
 
   let steps = 0;
-  btn.innerHTML = "<span>⏸ Stop Generation</span>";
+  const runningLabel = "<span>⏸ Stop Generation</span>";
+  if (topBtn) topBtn.innerHTML = runningLabel;
+  if (bottomBtn) bottomBtn.innerHTML = runningLabel;
+
   autoStreamInterval = setInterval(() => {
     if (steps >= 5) {
       clearInterval(autoStreamInterval);
       autoStreamInterval = null;
-      btn.innerHTML = "<span>▶ Auto Generate (5 Steps)</span>";
+      const label = "<span>▶ Auto Generate (5 Steps)</span>";
+      if (topBtn) topBtn.innerHTML = label;
+      if (bottomBtn) bottomBtn.innerHTML = label;
       return;
     }
     stepNextWord();
@@ -773,9 +887,16 @@ function resetSentence() {
   if (autoStreamInterval) {
     clearInterval(autoStreamInterval);
     autoStreamInterval = null;
-    document.getElementById("auto-stream-btn").innerHTML = "<span>▶ Auto Generate (5 Steps)</span>";
+    const label = "<span>▶ Auto Generate (5 Steps)</span>";
+    const topBtn = document.getElementById("top-auto-btn");
+    const bottomBtn = document.getElementById("auto-stream-btn");
+    if (topBtn) topBtn.innerHTML = label;
+    if (bottomBtn) bottomBtn.innerHTML = label;
   }
+  const preset = state.presets.find(p => p.id === state.activePresetId) || state.presets[0];
+  state.currentPrompt = preset.prompt;
   state.generatedTokens = [];
+  updatePromptUI(preset.prompt);
   updateGeneratedTextDisplay();
   recomputeAndRender();
 }
@@ -789,6 +910,56 @@ function setupEventListeners() {
   document.querySelectorAll(".preset-btn").forEach(btn => {
     btn.addEventListener("click", () => selectPreset(btn.dataset.id));
   });
+
+  // Top prompt input editing & keyboard shortcuts
+  const promptInput = document.getElementById("prompt-input");
+  if (promptInput) {
+    let inputDebounce = null;
+    promptInput.addEventListener("input", (e) => {
+      clearTimeout(inputDebounce);
+      inputDebounce = setTimeout(() => {
+        const text = e.target.value;
+        state.currentPrompt = text;
+        state.generatedTokens = [];
+
+        // Check if prefix corresponds to an existing preset
+        const matched = state.presets.find(p => text.startsWith(p.prompt.trim()));
+        if (matched) {
+          state.activePresetId = matched.id;
+          const extra = text.slice(matched.prompt.trim().length).trim();
+          if (extra) {
+            state.generatedTokens = extra.split(/\s+/).filter(Boolean);
+          }
+        }
+
+        updateTokenCountDisplay();
+        const streamPrompt = document.getElementById("stream-prompt-part");
+        if (streamPrompt) streamPrompt.textContent = text;
+        updateGeneratedTextDisplay();
+        recomputeAndRender();
+      }, 100);
+    });
+
+    promptInput.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        stepNextWord();
+      }
+    });
+  }
+
+  // Top action buttons
+  const topSampleBtn = document.getElementById("top-sample-btn");
+  if (topSampleBtn) topSampleBtn.addEventListener("click", stepNextWord);
+
+  const topAutoBtn = document.getElementById("top-auto-btn");
+  if (topAutoBtn) topAutoBtn.addEventListener("click", toggleAutoStream);
+
+  const topRollBtn = document.getElementById("top-roll-btn");
+  if (topRollBtn) topRollBtn.addEventListener("click", executeDiceRoll);
+
+  const resetPromptBtn = document.getElementById("reset-prompt-btn");
+  if (resetPromptBtn) resetPromptBtn.addEventListener("click", resetSentence);
 
   // Temperature slider
   const sliderTemp = document.getElementById("slider-temp");

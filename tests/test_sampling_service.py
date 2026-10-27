@@ -163,8 +163,9 @@ def test_repetition_penalty_breaks_loop() -> None:
     seq_broken, history_broken = service.generate_sequence(
         preset_id="repetition-loop",
         steps=3,
-        params=SamplingParameters(temperature=0.7, repetition_penalty=1.35),
+        params=SamplingParameters(temperature=0.1, repetition_penalty=1.35),
     )
     tokens_broken = [tok for tok, _ in history_broken]
     # First token should NOT be 'the' because 'the' is heavily penalized
     assert tokens_broken[0] in {"suddenly", "both"}
+    assert history_broken[0][1].argmax_token == "suddenly"
