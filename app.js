@@ -840,6 +840,7 @@ function stepNextWord() {
       val += (val.length === 0 || val.endsWith(" ") || val.endsWith("\n") ? "" : " ") + tok;
     }
     promptInput.value = val;
+    promptInput.scrollLeft = promptInput.scrollWidth;
     promptInput.scrollTop = promptInput.scrollHeight;
   }
 
@@ -941,7 +942,7 @@ function setupEventListeners() {
     });
 
     promptInput.addEventListener("keydown", (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      if (e.key === "Enter") {
         e.preventDefault();
         stepNextWord();
       }
