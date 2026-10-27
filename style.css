@@ -929,10 +929,8 @@ nav.main-nav {
   font-size: 1.15rem;
   line-height: 1.7;
   color: #fff;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.35rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .stream-prefix {

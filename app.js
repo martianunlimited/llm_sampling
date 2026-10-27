@@ -76,13 +76,13 @@ const FALLBACK_PRESETS = [
     "recommended_top_p": 0.90,
     "recommended_rep_pen": 1.35,
     "candidates": {
-      "the": 11.2,
+      "the": 10.5,
+      "suddenly": 8.4,
+      "both": 8.0,
       "a": 5.4,
-      "both": 4.8,
-      "they": 4.5,
-      "suddenly": 4.1,
-      "it": 3.8,
-      "finally": 3.5,
+      "they": 4.8,
+      "it": 4.1,
+      "finally": 3.8,
       "everything": 2.8,
       "stopped": 2.2,
       "ran": 1.7
@@ -134,6 +134,110 @@ const FALLBACK_PRESETS = [
   }
 ];
 
+// Rich scenario-specific continuation transitions for multi-token generation
+const SCENARIO_CONTINUATIONS = {
+  "factual-paris": {
+    "Paris": { ",": 8.5, "is": 7.2, "and": 6.2, "the": 5.1, "located": 4.5, "one": 3.8, "widely": 3.2, "a": 2.5 },
+    ",": { "which": 9.2, "the": 7.5, "located": 6.1, "known": 5.4, "a": 4.2, "renowned": 3.8, "France's": 3.1 },
+    "which": { "is": 11.4, "has": 6.2, "was": 5.1, "attracts": 4.8, "became": 3.9, "remains": 3.2 },
+    "is": { "famous": 9.8, "known": 9.5, "the": 7.2, "located": 6.5, "home": 5.9, "considered": 5.2, "widely": 4.5 },
+    "famous": { "for": 12.2, "as": 8.1, "throughout": 5.4, "worldwide": 4.8, "to": 3.9, "around": 3.2 },
+    "known": { "for": 12.2, "as": 8.5, "worldwide": 5.2, "throughout": 4.8, "across": 3.9 },
+    "for": { "its": 11.8, "art": 7.5, "the": 6.8, "culture": 6.2, "fashion": 5.9, "fine": 4.5, "museums": 4.1 },
+    "its": { "art": 9.2, "history": 8.8, "culture": 8.5, "iconic": 7.8, "architecture": 7.2, "cuisine": 6.8, "museums": 6.1 },
+    "art": { ",": 8.8, "and": 8.2, "throughout": 5.5, "across": 4.8, ".": 4.2 },
+    "culture": { ",": 8.8, "and": 8.2, "worldwide": 5.5, "across": 4.8, ".": 4.2 },
+    "and": { "its": 8.5, "the": 7.2, "culture": 6.5, "history": 6.0, "fashion": 5.5 },
+    "Lyon": { ",": 8.0, "not": 7.5, "is": 6.2, "which": 5.1, "in": 4.5 },
+    "London": { ",": 8.0, "not": 7.5, "is": 6.2, "which": 5.1, "in": 4.5 },
+    "Marseille": { ",": 8.0, "not": 7.5, "is": 6.2, "which": 5.1, "in": 4.5 }
+  },
+
+  "creative-forest": {
+    "glowing": { "crystal": 9.2, "orb": 8.9, "portal": 8.5, "sword": 7.8, "grimoire": 7.4, "amulet": 7.0, "cavern": 6.5, "creature": 6.2, "tome": 5.9, "shrine": 5.4 },
+    "mysterious": { "portal": 9.1, "crystal": 8.8, "grimoire": 8.2, "artifact": 7.9, "cavern": 7.4, "creature": 7.0, "door": 6.5, "shrine": 6.1 },
+    "hidden": { "cavern": 9.2, "portal": 8.8, "sanctuary": 8.1, "chamber": 7.6, "crystal": 7.2, "passage": 6.8, "shrine": 6.4 },
+    "secret": { "chamber": 9.0, "portal": 8.6, "passage": 8.2, "cavern": 7.5, "grimoire": 7.1, "door": 6.8 },
+    "crystal": { "pulsing": 8.8, "that": 8.4, "which": 7.9, "resting": 7.2, "emitting": 6.8, "covered": 6.2, "embedded": 5.8 },
+    "orb": { "pulsing": 8.8, "hovering": 8.5, "that": 8.1, "floating": 7.6, "emitting": 7.1, "glowing": 6.5 },
+    "portal": { "pulsing": 8.9, "leading": 8.5, "swirling": 8.0, "that": 7.6, "shimmering": 7.1, "into": 6.5 },
+    "sword": { "embedded": 8.9, "resting": 8.4, "radiating": 7.9, "pulsing": 7.4, "carved": 6.8 },
+    "book": { "bound": 8.8, "whispering": 8.2, "covered": 7.8, "resting": 7.2, "radiating": 6.8 },
+    "grimoire": { "bound": 8.9, "inscribed": 8.4, "pulsing": 7.9, "resting": 7.3, "whispering": 6.8 },
+    "amulet": { "pulsing": 8.8, "carved": 8.2, "glowing": 7.8, "resting": 7.1 },
+    "cavern": { "filled": 8.9, "glowing": 8.4, "echoing": 7.9, "carved": 7.2 },
+    "door": { "carved": 8.8, "leading": 8.4, "covered": 7.9, "sealed": 7.2 },
+    "cave": { "filled": 8.9, "glowing": 8.4, "hidden": 7.8, "carved": 7.1 },
+    "dragon": { "sleeping": 9.2, "resting": 8.6, "curled": 8.1, "guarding": 7.5 },
+    "pulsing": { "with": 11.5, "in": 7.8, "brightly": 6.8, "rhythmically": 6.1 },
+    "emitting": { "a": 9.5, "an": 8.8, "soft": 8.1, "ethereal": 7.5, "bright": 6.8 },
+    "hovering": { "above": 9.5, "in": 8.8, "silently": 8.1, "between": 7.2 },
+    "floating": { "in": 9.2, "above": 8.8, "gently": 8.1, "near": 7.4 },
+    "swirling": { "with": 11.2, "in": 8.1, "slowly": 7.5, "around": 6.8 },
+    "that": { "glowed": 9.5, "radiated": 8.8, "whispered": 8.1, "contained": 7.5, "held": 6.9, "hummed": 6.2 },
+    "which": { "glowed": 9.4, "radiated": 8.8, "held": 8.0, "whispered": 7.4, "pulsed": 6.8 },
+    "with": { "ethereal": 8.9, "ancient": 8.5, "celestial": 8.1, "radiant": 7.5, "dark": 7.0, "mystic": 6.5, "golden": 6.1 },
+    "ethereal": { "light": 10.5, "energy": 10.1, "magic": 9.4, "power": 8.8, "whispers": 7.5, "flames": 6.8 },
+    "ancient": { "magic": 10.2, "power": 9.8, "runes": 9.1, "energy": 8.5, "light": 7.8 },
+    "celestial": { "light": 10.5, "energy": 10.0, "power": 9.2, "flames": 8.1 },
+    "radiant": { "light": 10.5, "energy": 9.8, "warmth": 8.5, "power": 7.9 },
+    "light": { "illuminating": 9.2, "across": 8.5, "deep": 7.8, "into": 7.1, "and": 6.5, ".": 5.8 },
+    "energy": { "coursing": 9.2, "pulsing": 8.5, "through": 7.8, "and": 6.5, ".": 5.8 },
+    "magic": { "pulsing": 9.1, "from": 8.5, "into": 7.8, "and": 6.5, ".": 5.8 }
+  },
+
+  "repetition-loop": {
+    "the": { "dog": 10.8, "cat": 8.2, "animals": 5.5, "two": 5.0, "chase": 4.2, "owner": 3.8, "rain": 2.5 },
+    "dog": { "chased": 11.2, "barked": 6.5, "stopped": 5.8, "ran": 5.2, "tripped": 4.8, "collapsed": 3.5 },
+    "chased": { "the": 11.5, "a": 5.8, "after": 4.5, "into": 4.1, "around": 3.8 },
+    "cat": { "and": 9.5, "ran": 6.8, "climbed": 6.2, "escaped": 5.8, "stopped": 5.0, "hissed": 4.5 },
+    "and": { "then": 10.5, "suddenly": 6.2, "the": 5.8, "both": 5.0, "soon": 4.2 },
+    "then": { "the": 11.2, "both": 6.5, "they": 5.8, "suddenly": 5.2, "a": 4.5 },
+    "suddenly": { "both": 9.2, "they": 8.5, "a": 7.8, "the": 6.5, "everything": 6.0 },
+    "both": { "animals": 9.5, "stopped": 9.0, "collapsed": 8.2, "fell": 7.1, "froze": 6.5 },
+    "they": { "both": 9.1, "stopped": 8.5, "heard": 7.8, "saw": 7.2, "ran": 6.5 },
+    "stopped": { "and": 9.5, "panting": 8.8, "to": 8.2, "exhausted": 7.5, "looking": 6.8 },
+    "animals": { "stopped": 9.5, "looked": 8.2, "panted": 7.5, "rested": 6.8 },
+    "collapsed": { "onto": 9.2, "on": 8.5, "exhausted": 8.1, "together": 7.2 },
+    "panting": { "in": 8.8, "heavily": 8.2, "on": 7.8, "and": 7.1 }
+  },
+
+  "code-binary-search": {
+    " (low + high) // 2": { "\n        if": 12.5, "\n        guess =": 8.2, "\n        val =": 7.5, "\n        mid_val =": 6.8, "\n        print(mid)": 1.5 },
+    " low + (high - low) // 2": { "\n        if": 12.5, "\n        guess =": 8.2, "\n        val =": 7.5, "\n        mid_val =": 6.8 },
+    " (low + high) / 2": { "\n        if": 12.0, "\n        val =": 7.5 },
+    "\n        if": { " arr[mid] ==": 12.2, " arr[mid] <": 8.5, " arr[mid] >": 7.8, " target ==": 6.2 },
+    " arr[mid] ==": { " target:": 13.5, " target": 6.5, " 0:": 2.2 },
+    " target:": { "\n            return": 14.1, "\n            print('found')": 3.2, "\n            pass": 1.5 },
+    "\n            return": { " mid": 13.8, " True": 8.2, " arr[mid]": 6.5, " 0": 2.5 },
+    " mid": { "\n        elif": 12.8, "\n        if": 8.5, "\n        else:": 6.2, "\n        low =": 5.1 },
+    "\n        elif": { " arr[mid] <": 12.2, " arr[mid] >": 9.5, " target <": 6.8 },
+    " arr[mid] <": { " target:": 13.2, " val:": 4.5 },
+    "\n            low =": { " mid + 1": 14.0, " mid": 4.5, " 0": 2.1 },
+    " mid + 1": { "\n        else:": 13.2, "\n        elif": 6.5 },
+    "\n        else:": { "\n            high =": 13.8, "\n            return": 4.2 },
+    "\n            high =": { " mid - 1": 14.2, " mid": 4.5 }
+  },
+
+  "bimodal-baseball": {
+    "bat": { "at": 9.8, "hard": 8.5, "with": 8.0, "and": 7.2, ",": 6.5, "wildly": 6.0, "toward": 5.2 },
+    "wooden": { "bat": 13.2, "stick": 4.5, "club": 3.8 },
+    "arms": { "wildly": 9.5, "with": 8.2, "in": 7.5, "around": 6.8, "powerfully": 6.0 },
+    "at": { "the": 12.2, "a": 7.5, "an": 5.5, "that": 4.8 },
+    "the": { "ball": 13.5, "pitch": 9.8, "fastball": 8.5, "slider": 7.2, "curveball": 6.8 },
+    "ball": { ",": 9.8, "and": 8.6, "sending": 8.2, "hitting": 7.5, "driving": 6.8, "missing": 6.2 },
+    "pitch": { ",": 9.8, "and": 8.5, "sending": 8.0, "missing": 6.8 },
+    "fastball": { ",": 9.8, "and": 8.5, "sending": 8.0, "missing": 6.8 },
+    "sending": { "it": 11.8, "the ball": 8.5, "a drive": 7.2 },
+    "it": { "deep": 10.5, "flying": 9.2, "into": 8.5, "over": 8.0, "soaring": 7.2 },
+    "deep": { "into": 9.8, "the": 8.5, "left": 7.8, "center": 7.2, "field": 6.5 },
+    "into": { "the": 11.2, "left": 7.8, "center": 7.2, "the stands": 6.1 },
+    "left": { "field": 13.2, "field stands": 7.5, "stands": 6.8 },
+    "center": { "field": 13.2, "field stands": 7.5 },
+    "field": { ".": 10.5, "for": 8.5, "and": 7.2, "as": 6.5 }
+  }
+};
+
 // App State
 const state = {
   presets: FALLBACK_PRESETS,
@@ -149,49 +253,57 @@ const state = {
   activeCandidateHover: null
 };
 
-// Simulated continuation library for multi-step generation
-const CONTINUATIONS = {
-  "Paris": {
-    ",": 8.5,
-    "is": 7.2,
-    "was": 5.1,
-    "and": 4.2,
-    "in": 3.1
-  },
-  ",": {
-    "which": 9.2,
-    "the": 7.5,
-    "located": 6.1,
-    "known": 5.4,
-    "a": 4.0
-  },
-  "which": {
-    "is": 11.4,
-    "has": 6.2,
-    "was": 5.1,
-    "attracts": 4.8
-  },
-  "is": {
-    "known": 9.5,
-    "famous": 8.8,
-    "the": 7.2,
-    "located": 6.5,
-    "home": 5.9
-  },
-  "glowing": {
-    "crystal": 9.1,
-    "orb": 8.8,
-    "portal": 7.9,
-    "sword": 6.5,
-    "light": 5.4
-  },
-  "the": {
-    "cat": 9.5,
-    "dog": 8.8,
-    "ancient": 6.5,
-    "most": 5.2
+// Contextual Continuation Resolver
+function getContinuationLogits(presetId, generatedTokens, defaultCandidates) {
+  if (!generatedTokens || generatedTokens.length === 0) {
+    return defaultCandidates;
   }
-};
+
+  // Look in active preset's continuation library
+  const presetObj = state.presets.find(p => p.id === presetId);
+  const scenario = (presetObj && presetObj.continuations && Object.keys(presetObj.continuations).length > 0)
+    ? presetObj.continuations
+    : (SCENARIO_CONTINUATIONS[presetId] || {});
+
+  const lastToken = generatedTokens[generatedTokens.length - 1];
+  const cleanLast = lastToken.trim();
+
+  // 1. Direct match on last token
+  if (scenario[lastToken]) return scenario[lastToken];
+  if (scenario[cleanLast]) return scenario[cleanLast];
+
+  // 2. Multi-token context match (e.g., "chased the", "bat at", "arr[mid] ==")
+  if (generatedTokens.length >= 2) {
+    const twoTok = `${generatedTokens[generatedTokens.length - 2].trim()} ${cleanLast}`;
+    if (scenario[twoTok]) return scenario[twoTok];
+  }
+
+  // 3. Fallback generic continuations
+  return {
+    "and": 7.5,
+    "the": 7.2,
+    "with": 6.5,
+    "in": 6.0,
+    "which": 5.5,
+    "suddenly": 5.0,
+    ".": 4.5
+  };
+}
+
+// Tokenize prompt and generated text into subwords and tokens
+function tokenizeContext(prompt, generatedTokens) {
+  const fullText = prompt + " " + (generatedTokens || []).join(" ");
+  const rawWords = fullText.split(/\s+/).filter(Boolean);
+  const tokens = [];
+  for (const w of rawWords) {
+    tokens.push(w);
+    const subwords = w.match(/\w+|[^\s\w]/g);
+    if (subwords && subwords.length > 1) {
+      tokens.push(...subwords);
+    }
+  }
+  return tokens;
+}
 
 // ============================================================================
 // Core Sampling Math (Client-Side)
@@ -202,13 +314,23 @@ function applyRepetitionPenalty(logits, contextTokens, penalty) {
     return { ...logits };
   }
 
-  const contextSet = new Set(contextTokens.map(t => t.trim().toLowerCase()).filter(Boolean));
-  const penalized = {};
+  const counts = {};
+  for (const tok of contextTokens) {
+    if (!tok) continue;
+    const clean = tok.trim().toLowerCase();
+    if (clean) {
+      counts[clean] = (counts[clean] || 0) + 1;
+    }
+  }
 
+  const penalized = {};
   for (const [tok, val] of Object.entries(logits)) {
     const cleanTok = tok.trim().toLowerCase();
-    if (contextSet.has(cleanTok)) {
-      penalized[tok] = val > 0 ? (val / penalty) : (val * penalty);
+    const count = counts[cleanTok] || 0;
+    if (count > 0) {
+      // Frequency-dampened repetition penalty
+      const effectivePenalty = Math.pow(penalty, Math.min(2.0, count));
+      penalized[tok] = val > 0 ? (val / effectivePenalty) : (val * effectivePenalty);
     } else {
       penalized[tok] = val;
     }
@@ -239,11 +361,11 @@ function computeSoftmax(logits, temperature = 1.0) {
   return probs;
 }
 
-function processDistribution(prompt, rawLogits, params) {
-  const contextTokens = prompt.split(/\s+/);
+function processDistribution(prompt, rawLogits, params, contextTokens = null) {
+  const tokensForPenalty = contextTokens || tokenizeContext(prompt, []);
 
   // 1. Repetition penalty
-  const penalizedLogits = applyRepetitionPenalty(rawLogits, contextTokens, params.repetition_penalty);
+  const penalizedLogits = applyRepetitionPenalty(rawLogits, tokensForPenalty, params.repetition_penalty);
 
   // 2. Softmax with Temperature
   const rawProbs = computeSoftmax(penalizedLogits, params.temperature);
@@ -345,11 +467,14 @@ function processDistribution(prompt, rawLogits, params) {
 
 function sampleFromCandidates(candidates, forcedRoll = null) {
   const surviving = candidates.filter(c => !c.filtered && c.final_prob > 0);
-  if (surviving.length === 0) return candidates[0] ? candidates[0].token : "";
-
   const roll = (forcedRoll !== null) ? forcedRoll : Math.random();
-  let cumulative = 0.0;
 
+  if (surviving.length === 0) {
+    const fallbackTok = candidates[0] ? candidates[0].token : "";
+    return { token: fallbackTok, roll };
+  }
+
+  let cumulative = 0.0;
   for (const c of surviving) {
     cumulative += c.final_prob;
     if (roll <= cumulative) {
@@ -358,6 +483,23 @@ function sampleFromCandidates(candidates, forcedRoll = null) {
   }
 
   return { token: surviving[surviving.length - 1].token, roll };
+}
+
+// Compute dynamic Beam Search multi-token sequence hypothesis
+function computeBeamHypothesis(presetId, generatedTokens, argmaxToken) {
+  const sequence = [argmaxToken];
+  let curTokens = [...generatedTokens, argmaxToken];
+
+  for (let step = 0; step < 2; step++) {
+    const nextLogits = getContinuationLogits(presetId, curTokens, {});
+    const sorted = Object.entries(nextLogits).sort((a, b) => b[1] - a[1]);
+    if (sorted.length === 0) break;
+    const nextTop = sorted[0][0];
+    sequence.push(nextTop);
+    curTokens.push(nextTop);
+  }
+
+  return sequence.join(" ");
 }
 
 // ============================================================================
@@ -377,12 +519,11 @@ function renderDistributionBars() {
     item.className = `candidate-bar-item ${c.filtered ? "filtered" : ""} ${isArgmax ? "argmax" : ""}`;
 
     const percentVal = (c.final_prob * 100).toFixed(1);
-    const rawPercentVal = (c.raw_prob * 100).toFixed(1);
 
     item.innerHTML = `
       <div class="bar-token-label">
         <span class="token-rank-num">#${idx + 1}</span>
-        <strong>'${c.token}'</strong>
+        <strong>'${escapeHtml(c.token)}'</strong>
       </div>
       <div class="bar-track">
         <div class="bar-fill" style="width: ${c.filtered ? Math.max(3, c.raw_prob * 100) : c.final_prob * 100}%;"></div>
@@ -395,6 +536,16 @@ function renderDistributionBars() {
     item.addEventListener("mouseenter", () => updateMathInspector(c));
     container.appendChild(item);
   });
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function updateMathInspector(c) {
@@ -438,7 +589,8 @@ function renderProbabilityTape(activeRoll = null, activeWinner = null) {
   // Colors palette for tape slices
   const colors = [
     "#10b981", "#06b6d4", "#6366f1", "#8b5cf6",
-    "#ec4899", "#f59e0b", "#3b82f6", "#14b8a6"
+    "#ec4899", "#f59e0b", "#3b82f6", "#14b8a6",
+    "#f43f5e", "#84cc16", "#eab308", "#0ea5e9"
   ];
 
   surviving.forEach((c, idx) => {
@@ -447,17 +599,26 @@ function renderProbabilityTape(activeRoll = null, activeWinner = null) {
     slice.style.width = `${c.final_prob * 100}%`;
     slice.style.backgroundColor = colors[idx % colors.length];
     slice.title = `'${c.token}': ${(c.final_prob * 100).toFixed(1)}%`;
-    slice.textContent = (c.final_prob > 0.06) ? `'${c.token}'` : "·";
+    slice.textContent = (c.final_prob > 0.05) ? `'${c.token}'` : "·";
     tape.appendChild(slice);
   });
 
+  const pointer = document.getElementById("tape-pointer");
   if (activeRoll !== null) {
-    const pointer = document.getElementById("tape-pointer");
     const percent = Math.min(99.5, Math.max(0.5, activeRoll * 100));
     pointer.style.left = `${percent}%`;
     document.getElementById("pointer-tag").textContent = `r = ${activeRoll.toFixed(3)}`;
     document.getElementById("roll-coord-display").textContent = activeRoll.toFixed(4);
-    document.getElementById("roll-winner-display").textContent = `'${activeWinner}'`;
+    if (activeWinner !== null) {
+      document.getElementById("roll-winner-display").textContent = `'${activeWinner}'`;
+    }
+  } else {
+    // Default pointer position at start or after reset: point to top candidate slice center
+    const topP = surviving.length > 0 ? Math.min(50, surviving[0].final_prob * 50) : 50;
+    pointer.style.left = `${topP}%`;
+    document.getElementById("pointer-tag").textContent = `r = 0.000`;
+    document.getElementById("roll-coord-display").textContent = "Ready";
+    document.getElementById("roll-winner-display").textContent = surviving[0] ? `'${surviving[0].token}'` : "—";
   }
 }
 
@@ -465,19 +626,37 @@ function updateStrategiesDisplay() {
   const result = state.distributionResult;
   document.getElementById("strat-greedy-tok").textContent = `'${result.argmax_token}'`;
 
-  // Simulate Nucleus roll
+  // Simulate Nucleus roll from active candidates
   const sampleRes = sampleFromCandidates(result.candidates);
   document.getElementById("strat-nucleus-tok").textContent = `'${sampleRes.token}'`;
 
-  // Beam Search hypothesis
-  const prefix = state.currentPrompt.split(/\s+/).slice(-2).join(" ");
-  document.getElementById("strat-beam-tok").textContent = `'${result.argmax_token} , which is'`;
+  // Beam Search hypothesis dynamically projected
+  const beamHypothesis = computeBeamHypothesis(state.activePresetId, state.generatedTokens, result.argmax_token);
+  document.getElementById("strat-beam-tok").textContent = `'${beamHypothesis}'`;
 }
 
 function renderPresetInsights(preset) {
   if (!preset) return;
   document.getElementById("scenario-title").textContent = preset.title;
   document.getElementById("scenario-explanation").textContent = preset.explanation;
+}
+
+function updateGeneratedTextDisplay() {
+  const streamEl = document.getElementById("stream-generated-part");
+  if (!streamEl) return;
+
+  let formatted = "";
+  for (let i = 0; i < state.generatedTokens.length; i++) {
+    const tok = state.generatedTokens[i];
+    if (tok.startsWith("\n") || tok.startsWith(" ")) {
+      formatted += tok;
+    } else if (tok === "," || tok === "." || tok === "!" || tok === "?") {
+      formatted += tok;
+    } else {
+      formatted += (i === 0 ? " " : " ") + tok;
+    }
+  }
+  streamEl.textContent = formatted;
 }
 
 function selectPreset(presetId) {
@@ -507,7 +686,7 @@ function selectPreset(presetId) {
 
   document.getElementById("prompt-display").textContent = preset.prompt;
   document.getElementById("stream-prompt-part").textContent = preset.prompt;
-  document.getElementById("stream-generated-part").textContent = "";
+  updateGeneratedTextDisplay();
 
   document.querySelectorAll(".preset-btn").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.id === presetId);
@@ -517,19 +696,15 @@ function selectPreset(presetId) {
   renderPresetInsights(preset);
 }
 
-function recomputeAndRender() {
+function recomputeAndRender(lastRoll = null, lastToken = null) {
   const preset = state.presets.find(p => p.id === state.activePresetId) || state.presets[0];
-  
-  // If we have generated words, inspect continuation library
-  let activeLogits = preset.candidates;
-  if (state.generatedTokens.length > 0) {
-    const lastWord = state.generatedTokens[state.generatedTokens.length - 1];
-    activeLogits = CONTINUATIONS[lastWord] || preset.candidates;
-  }
 
-  const fullText = state.currentPrompt + " " + state.generatedTokens.join(" ");
+  // Dynamically resolve continuation logits conditioned on generated sequence history
+  const activeLogits = getContinuationLogits(state.activePresetId, state.generatedTokens, preset.candidates);
+
+  const fullTokens = tokenizeContext(state.currentPrompt, state.generatedTokens);
   state.distributionResult = processDistribution(
-    fullText,
+    state.currentPrompt + " " + state.generatedTokens.join(" "),
     activeLogits,
     {
       temperature: state.temperature,
@@ -537,17 +712,19 @@ function recomputeAndRender() {
       top_p: state.top_p,
       min_p: state.min_p,
       repetition_penalty: state.repetition_penalty
-    }
+    },
+    fullTokens
   );
 
   renderDistributionBars();
-  
+
   // Set default inspector to argmax candidate
   if (state.distributionResult.candidates.length > 0) {
     updateMathInspector(state.distributionResult.candidates[0]);
   }
 
-  renderProbabilityTape();
+  // Render probability tape and strategies for the new step
+  renderProbabilityTape(lastRoll, lastToken);
   updateStrategiesDisplay();
 }
 
@@ -557,10 +734,15 @@ function executeDiceRoll() {
 }
 
 function stepNextWord() {
+  // 1. Sample token from current candidate distribution
   const res = sampleFromCandidates(state.distributionResult.candidates);
+
+  // 2. Append newly sampled token to context history
   state.generatedTokens.push(res.token);
-  document.getElementById("stream-generated-part").textContent = " " + state.generatedTokens.join(" ");
-  recomputeAndRender();
+  updateGeneratedTextDisplay();
+
+  // 3. Dynamically recalculate candidate probabilities for the next token!
+  recomputeAndRender(res.roll, res.token);
 }
 
 let autoStreamInterval = null;
@@ -594,7 +776,7 @@ function resetSentence() {
     document.getElementById("auto-stream-btn").innerHTML = "<span>▶ Auto Generate (5 Steps)</span>";
   }
   state.generatedTokens = [];
-  document.getElementById("stream-generated-part").textContent = "";
+  updateGeneratedTextDisplay();
   recomputeAndRender();
 }
 

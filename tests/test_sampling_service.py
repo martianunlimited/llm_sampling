@@ -118,3 +118,53 @@ def test_sampling_service_full_pipeline() -> None:
     # Check that surviving candidate probabilities sum to 1.0
     surviving_sum = sum(c.final_prob for c in result.candidates if not c.filtered)
     assert math.isclose(surviving_sum, 1.0, rel_tol=1e-5)
+
+
+def test_multi_step_generation_recalculates_probabilities() -> None:
+    """Verify that every step of multi-token generation recalculates distributions dynamically."""
+    service = SamplingService()
+    # Test Code Completion
+    seq, history = service.generate_sequence(
+        preset_id="code-binary-search",
+        steps=4,
+        params=SamplingParameters(temperature=0.1, repetition_penalty=1.0),
+    )
+    assert len(history) == 4
+    tokens = [tok for tok, _ in history]
+    assert tokens[0] == " (low + high) // 2"
+    assert tokens[1] == "\n        if"
+    assert tokens[2] == " arr[mid] =="
+    assert tokens[3] == " target:"
+
+    # Verify that candidate token sets differ across steps (not stuck on step 1)
+    cands_step1 = {c.token for c in history[0][1].candidates}
+    cands_step2 = {c.token for c in history[1][1].candidates}
+    assert " (low + high) // 2" in cands_step1
+    assert " (low + high) // 2" not in cands_step2
+    assert "\n        if" in cands_step2
+
+
+def test_repetition_penalty_breaks_loop() -> None:
+    """Verify that loop repeats without penalty but breaks when repetition penalty >= 1.35."""
+    service = SamplingService()
+
+    # 1. No penalty (Greedy: loops)
+    seq_loop, history_loop = service.generate_sequence(
+        preset_id="repetition-loop",
+        steps=4,
+        params=SamplingParameters(temperature=0.1, repetition_penalty=1.0),
+    )
+    tokens_loop = [tok for tok, _ in history_loop]
+    assert tokens_loop[0] == "the"
+    assert tokens_loop[1] == "dog"
+    assert tokens_loop[2] == "chased"
+
+    # 2. With repetition penalty 1.35 (Greedy: breaks loop)
+    seq_broken, history_broken = service.generate_sequence(
+        preset_id="repetition-loop",
+        steps=3,
+        params=SamplingParameters(temperature=0.7, repetition_penalty=1.35),
+    )
+    tokens_broken = [tok for tok, _ in history_broken]
+    # First token should NOT be 'the' because 'the' is heavily penalized
+    assert tokens_broken[0] in {"suddenly", "both"}

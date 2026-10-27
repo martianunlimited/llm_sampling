@@ -151,5 +151,61 @@ def beam_search(
     console.print(table)
 
 
+@app.command()
+def generate(
+    preset: str = typer.Option(
+        "factual-paris", "--preset", "-p", help="Preset ID to generate from"
+    ),
+    steps: int = typer.Option(5, "--steps", "-s", help="Number of tokens to generate"),
+    temperature: float = typer.Option(0.7, "--temp", "-t", help="Softmax temperature"),
+    top_k: int = typer.Option(10, "--top-k", "-k", help="Top-K cutoff"),
+    top_p: float = typer.Option(0.90, "--top-p", help="Top-P nucleus threshold"),
+    rep_penalty: float = typer.Option(1.0, "--rep-pen", "-r", help="Repetition penalty"),
+) -> None:
+    """Autoregressively generate multi-token text, recalculating probabilities on every step."""
+    preset_obj = get_preset_by_id(preset)
+    if not preset_obj:
+        console.print(f"[red]Error: Preset '{preset}' not found.[/red]")
+        raise typer.Exit(code=1)
+
+    params = SamplingParameters(
+        temperature=temperature,
+        top_k=top_k,
+        top_p=top_p,
+        repetition_penalty=rep_penalty,
+    )
+
+    service = SamplingService()
+    seq, history = service.generate_sequence(preset_id=preset, steps=steps, params=params)
+
+    console.print(
+        Panel.fit(
+            f"[bold cyan]Prompt:[/bold cyan] {preset_obj.prompt}\n"
+            f"[bold green]Generated:[/bold green] {seq}\n"
+            f"[bold]Parameters:[/bold] Temp={params.temperature:.2f} | "
+            f"Top-K={params.top_k} | Top-P={params.top_p:.2f} | "
+            f"RepPen={params.repetition_penalty:.2f}",
+            title="⚡ Multi-Token Generation",
+            border_style="green",
+        )
+    )
+
+    table = Table(title="Step-by-Step Probability Recalculation", show_header=True)
+    table.add_column("Step", justify="center", style="dim")
+    table.add_column("Sampled Token", style="bold cyan")
+    table.add_column("Entropy", justify="right")
+    table.add_column("Top Candidates for Step", style="dim")
+
+    for step_num, (tok, dist) in enumerate(history, 1):
+        top_cands = ", ".join(
+            f"'{c.token}' ({c.final_prob * 100:.1f}%)"
+            for c in dist.candidates[:3]
+            if not c.filtered
+        )
+        table.add_row(str(step_num), f"'{tok}'", f"{dist.entropy:.2f} bits", top_cands)
+
+    console.print(table)
+
+
 if __name__ == "__main__":
     app()

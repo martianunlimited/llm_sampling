@@ -225,11 +225,47 @@ class SamplingService:
 
         return surviving[-1].token
 
+    def generate_sequence(
+        self,
+        preset_id: str,
+        steps: int = 5,
+        params: SamplingParameters | None = None,
+    ) -> tuple[str, list[tuple[str, DistributionResult]]]:
+        """Autoregressively generate tokens, recalculating distributions at each step."""
+        from src.core.preset_data import get_preset_by_id, get_scenario_continuation_logits
+
+        preset = get_preset_by_id(preset_id)
+        if not preset:
+            return "", []
+
+        sampling_params = params or SamplingParameters()
+        generated_tokens: list[str] = []
+        step_history: list[tuple[str, DistributionResult]] = []
+
+        for _ in range(steps):
+            active_logits = get_scenario_continuation_logits(
+                preset_id, generated_tokens, default_candidates=preset.candidates
+            )
+            current_prompt = preset.prompt + (
+                " " + " ".join(generated_tokens) if generated_tokens else ""
+            )
+            dist_result = self.process_distribution(current_prompt, active_logits, sampling_params)
+            sampled_tok = self.sample_token(dist_result.candidates)
+            generated_tokens.append(sampled_tok)
+            step_history.append((sampled_tok, dist_result))
+
+        return " ".join(generated_tokens), step_history
+
     def simulate_beam_search(
-        self, prompt: str, beam_width: int = 3, max_steps: int = 2
+        self,
+        prompt: str,
+        beam_width: int = 3,
+        max_steps: int = 2,
+        preset_id: str = "factual-paris",
     ) -> list[BeamHypothesis]:
         """Simulate Beam Search expanding hypotheses across multi-token horizons."""
-        # Simple multi-step vocabulary projection demo
+        from src.core.preset_data import get_scenario_continuation_logits
+
         beams: list[BeamHypothesis] = [
             BeamHypothesis(
                 tokens=prompt.split(),
@@ -239,22 +275,19 @@ class SamplingService:
             )
         ]
 
-        # Branching candidates library
-        branch_library = {
-            "is": [("Paris", -0.15), ("Lyon", -2.8), ("known", -3.2)],
-            "Paris": [(",", -0.4), ("is", -1.2), ("was", -2.5)],
-            ",": [("which", -0.5), ("the", -1.1), ("located", -2.0)],
-        }
-
         for _ in range(max_steps):
             all_candidates: list[BeamHypothesis] = []
             for b in beams:
-                last_tok = b.tokens[-1] if b.tokens else "is"
-                extensions = branch_library.get(
-                    last_tok, [("city", -0.5), ("region", -1.8), ("capital", -2.2)]
-                )
+                # Retrieve next logits conditioned on tokens after initial prompt
+                prompt_tok_len = len(prompt.split())
+                gen_toks = b.tokens[prompt_tok_len:]
+                logits = get_scenario_continuation_logits(preset_id, gen_toks)
+                # Compute log-softmax
+                probs = compute_softmax(logits, temperature=1.0)
+                sorted_items = sorted(probs.items(), key=lambda x: x[1], reverse=True)[:beam_width]
 
-                for next_tok, log_p in extensions:
+                for next_tok, prob in sorted_items:
+                    log_p = math.log(max(1e-12, prob))
                     new_tokens = b.tokens + [next_tok]
                     new_text = b.text + " " + next_tok
                     new_cum = b.cumulative_log_prob + log_p

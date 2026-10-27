@@ -61,3 +61,4 @@ class SamplingPreset(BaseModel):
     recommended_top_p: float = 0.90
     recommended_rep_pen: float = 1.0
     candidates: dict[str, float] = Field(default_factory=dict)
+    continuations: dict[str, dict[str, float]] = Field(default_factory=dict)
